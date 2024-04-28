@@ -1,0 +1,6 @@
+@Cw4_HostAddress = http://localhost:5245
+
+GET {{Cw4_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
