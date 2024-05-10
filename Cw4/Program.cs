@@ -1,4 +1,5 @@
-namespace Cw4.Model;
+using Cw4.Repository;
+using Cw4.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

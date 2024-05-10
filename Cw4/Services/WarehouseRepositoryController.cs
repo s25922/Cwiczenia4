@@ -1,27 +1,84 @@
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Threading.Tasks;
-using Cw3.Animal;
+using Cw4.Model;
+using Cw4.Repository;
 
-
-namespace Cw3.Animal
+namespace Cw4.Services
 {
-    [Route("api/animals")]
+    [Route("api/warehouse")]
     [ApiController]
-    public class WarehouseRepositoryController : ControllerBase
+    public class WarehouseController : ControllerBase
     {
-        private readonly IWarehouseRepository _animalRepository;
+        private readonly IWarehouseRepository _warehouseRepository;
 
-        public WarehouseRepositoryController(IWarehouseRepository warehouseRepository)
+        public WarehouseController(IWarehouseRepository warehouseRepository)
         {
-            _animalRepository = warehouseRepository ?? throw new ArgumentNullException(nameof(warehouseRepository));
+            _warehouseRepository = warehouseRepository ?? throw new ArgumentNullException(nameof(warehouseRepository));
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAllAnimals(string orderBy = "name")
+        [HttpGet("getAllProductWarehouses")]
+        public async Task<IActionResult> GetAllProductWarehousesAsync()
         {
-            var animals = await _animalRepository.GetAnimals(orderBy);
-            return Ok(animals);
+            try
+            {
+                var productWarehouses = await _warehouseRepository.GetAllProductWarehousesAsync();
+                return Ok(productWarehouses);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+        
+        // Metoda POST korzystająca z procedury składowanej
+        [HttpPost("addProductUsingProcedure")]
+        public async Task<IActionResult> AddProductToWarehouseUsingProcedure([FromBody] ProductWarehouseAddRequest request)
+        {
+            if (request.Amount <= 0)
+            {
+                return BadRequest("Amount must be greater than zero.");
+            }
+
+            try
+            {
+                // Wywołanie repozytorium korzystającego z procedury składowanej
+                var result = await _warehouseRepository.AddProductToWarehouseUsingProcedureAsync(request.ProductId, request.WarehouseId, request.Amount, request.CreatedAt);
+                if (result)
+                {
+                    return Ok("Product successfully added to the warehouse using stored procedure.");
+                }
+                return BadRequest("Failed to add product using the stored procedure.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
+        // Metoda POST bez użycia procedury składowanej
+        [HttpPost("addProductWithoutProcedure")]
+        public async Task<IActionResult> AddProductToWarehouseWithoutProcedure([FromBody] ProductWarehouseAddRequest request)
+        {
+            if (request.Amount <= 0)
+            {
+                return BadRequest("Amount must be greater than zero.");
+            }
+
+            try
+            {
+                // Wywołanie repozytorium bez użycia procedury składowanej
+                var result = await _warehouseRepository.AddProductToWarehouseAsync(request.ProductId, request.WarehouseId, request.Amount, request.CreatedAt);
+                if (result)
+                {
+                    return Ok("Product successfully added to the warehouse without stored procedure.");
+                }
+                return BadRequest("Failed to add product without stored procedure.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
     }
 }
