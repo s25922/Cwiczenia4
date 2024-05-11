@@ -7,9 +7,9 @@ namespace Cw4.Repository
     {
 
         Task<IEnumerable<ProductWarehouse>> GetAllProductWarehousesAsync();
-        Task<bool> AddProductToWarehouseAsync(int productId, int warehouseId, int amount, DateTime createdAt);
+        Task<int> AddProductToWarehouseAsync(int productId, int warehouseId, int amount, DateTime createdAt);
         
-        Task<bool> AddProductToWarehouseUsingProcedureAsync(int productId, int warehouseId, int amount, DateTime createdAt);
+        Task<int> AddProductToWarehouseUsingProcedureAsync(int productId, int warehouseId, int amount, DateTime createdAt);
 
     }
 }

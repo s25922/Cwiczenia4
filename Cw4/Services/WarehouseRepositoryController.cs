@@ -31,7 +31,6 @@ namespace Cw4.Services
             }
         }
         
-        // Metoda POST korzystająca z procedury składowanej
         [HttpPost("addProductUsingProcedure")]
         public async Task<IActionResult> AddProductToWarehouseUsingProcedure([FromBody] ProductWarehouseAddRequest request)
         {
@@ -42,11 +41,10 @@ namespace Cw4.Services
 
             try
             {
-                // Wywołanie repozytorium korzystającego z procedury składowanej
-                var result = await _warehouseRepository.AddProductToWarehouseUsingProcedureAsync(request.ProductId, request.WarehouseId, request.Amount, request.CreatedAt);
-                if (result)
+                var newIndex = await _warehouseRepository.AddProductToWarehouseUsingProcedureAsync(request.ProductId, request.WarehouseId, request.Amount, request.CreatedAt);
+                if (newIndex >= 0)
                 {
-                    return Ok("Product successfully added to the warehouse using stored procedure.");
+                    return Ok(new { Message = "Product successfully added to the warehouse using stored procedure.", RowIndex = newIndex });
                 }
                 return BadRequest("Failed to add product using the stored procedure.");
             }
@@ -55,6 +53,7 @@ namespace Cw4.Services
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
 
         // Metoda POST bez użycia procedury składowanej
         [HttpPost("addProductWithoutProcedure")]
@@ -68,12 +67,12 @@ namespace Cw4.Services
             try
             {
                 // Wywołanie repozytorium bez użycia procedury składowanej
-                var result = await _warehouseRepository.AddProductToWarehouseAsync(request.ProductId, request.WarehouseId, request.Amount, request.CreatedAt);
-                if (result)
+                var newIndex = await _warehouseRepository.AddProductToWarehouseAsync(request.ProductId, request.WarehouseId, request.Amount, request.CreatedAt);
+                if (newIndex >= 0)
                 {
-                    return Ok("Product successfully added to the warehouse without stored procedure.");
+                    return Ok(new { Message = "Product successfully added to the warehouse using stored procedure.", RowIndex = newIndex });
                 }
-                return BadRequest("Failed to add product without stored procedure.");
+                return BadRequest("Failed to add product using the stored procedure.");
             }
             catch (Exception ex)
             {

@@ -57,9 +57,8 @@ namespace Cw4.Repository
         }
 
         
-        // Method to add a product to the warehouse using the stored procedure
-        public async Task<bool> AddProductToWarehouseUsingProcedureAsync(int productId, int warehouseId, int amount,
-            DateTime createdAt)
+// Method to add a product to the warehouse using the stored procedure and return the new row index
+        public async Task<int> AddProductToWarehouseUsingProcedureAsync(int productId, int warehouseId, int amount, DateTime createdAt)
         {
             using var con = new SqlConnection(_connectionString);
             using var com = new SqlCommand("AddProductToWarehouse", con)
@@ -76,74 +75,20 @@ namespace Cw4.Repository
             try
             {
                 await con.OpenAsync();
-                var rowsAffected = await com.ExecuteNonQueryAsync();
-                return rowsAffected > 0; // Success if rows were affected
-            }
-            catch (Exception ex)
-            {
-                // Handle or log the exception
-                Console.WriteLine($"Error: {ex.Message}");
-                return false;
-            }
-        }
-        private async Task<List<string>> GetAllProductWarehouseEntries(SqlConnection con, SqlTransaction tran)
-        {
-            var entries = new List<string>();
-            var cmd = new SqlCommand("SELECT * FROM Product_Warehouse", con, tran);
-
-            using (var reader = await cmd.ExecuteReaderAsync())
-            {
-                while (await reader.ReadAsync())
+                var result = await com.ExecuteScalarAsync(); // Execute and fetch the result
+                if (result != null && int.TryParse(result.ToString(), out int newIndex))
                 {
-                    int idProductWarehouse = reader.GetInt32(reader.GetOrdinal("IdProductWarehouse"));
-                    int idProduct = reader.GetInt32(reader.GetOrdinal("IdProduct"));
-                    int idOrder = reader.GetInt32(reader.GetOrdinal("IdOrder"));
-                    int idWarehouse = reader.GetInt32(reader.GetOrdinal("IdWarehouse"));
-                    int amount = reader.GetInt32(reader.GetOrdinal("Amount"));
-                    float price = Convert.ToSingle(reader["Price"]);
-                    DateTime createdAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt"));
-
-                    string entry = $"ID: {idProductWarehouse}, Product ID: {idProduct}, Order ID: {idOrder}, Warehouse ID: {idWarehouse}, Amount: {amount}, Price: {price}, Created At: {createdAt}";
-                    entries.Add(entry);
+                    return newIndex; // Return the new row index
                 }
+                return -1; // Return -1 if no index was returned
             }
-            return entries;
-        }
-        
-        // Method to fetch warehouse data, which could be sorted by a specific column
-        public async Task<List<Warehouse>> GetWarehouseAsync(string orderBy)
-        {
-            var result = new List<Warehouse>();
-
-            using var con = new SqlConnection(_connectionString);
-            var query = $"SELECT * FROM Warehouse ORDER BY {orderBy}";
-
-            using var com = new SqlCommand(query, con);
-
-            try
+            catch (Exception)
             {
-                await con.OpenAsync();
-                using var dr = await com.ExecuteReaderAsync();
-                while (await dr.ReadAsync())
-                {
-                    result.Add(new Warehouse
-                    {
-                        IdWarehouse = (int)dr["IdWarehouse"],
-                        Name = dr["Name"].ToString(),
-                        Address = dr["Address"].ToString()
-                    });
-                }
+                return -1; // Return -1 upon error
             }
-            catch (Exception ex)
-            {
-                // Handle or log the exception
-                Console.WriteLine($"Error: {ex.Message}");
-            }
-
-            return result;
         }
 
-        public async Task<bool> AddProductToWarehouseAsync(int productId, int warehouseId, int amount,
+        public async Task<int> AddProductToWarehouseAsync(int productId, int warehouseId, int amount,
             DateTime createdAt)
         {
             using var con = new SqlConnection(_connectionString);
@@ -195,7 +140,7 @@ namespace Cw4.Repository
             {
                 tran.Rollback();
                 Console.WriteLine($"Error: {ex.Message}");
-                return false;
+                return -1;
             }
         }
 
@@ -233,11 +178,13 @@ namespace Cw4.Repository
             return await cmd.ExecuteNonQueryAsync() > 0;
         }
 
-        private async Task<bool> InsertProductWarehouse(SqlConnection con, SqlTransaction tran, int productId,
+        private async Task<int> InsertProductWarehouse(SqlConnection con, SqlTransaction tran, int productId,
             int orderId, int warehouseId, int amount, float price, DateTime createdAt)
         {
             var cmd = new SqlCommand(
-                "INSERT INTO Product_Warehouse (IdProduct, IdOrder, IdWarehouse, Amount, Price, CreatedAt) VALUES (@IdProduct, @IdOrder, @IdWarehouse, @Amount, @Price, @CreatedAt)",
+                @"INSERT INTO Product_Warehouse (IdProduct, IdOrder, IdWarehouse, Amount, Price, CreatedAt) 
+          VALUES (@IdProduct, @IdOrder, @IdWarehouse, @Amount, @Price, @CreatedAt);
+          SELECT CAST(SCOPE_IDENTITY() as int);",
                 con, tran);
             cmd.Parameters.AddWithValue("@IdProduct", productId);
             cmd.Parameters.AddWithValue("@IdOrder", orderId);
@@ -245,8 +192,15 @@ namespace Cw4.Repository
             cmd.Parameters.AddWithValue("@Amount", amount);
             cmd.Parameters.AddWithValue("@Price", price);
             cmd.Parameters.AddWithValue("@CreatedAt", createdAt);
-            return await cmd.ExecuteNonQueryAsync() > 0;
+
+            var result = await cmd.ExecuteScalarAsync();
+            if (result != null && int.TryParse(result.ToString(), out int newId))
+            {
+                return newId; // Returns the new index
+            }
+            return -1; // Return -1 if there was an error
         }
+
         
         private async Task<float?> GetProductPrice(SqlConnection con, SqlTransaction tran, int productId)
         {
